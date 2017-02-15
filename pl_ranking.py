@@ -91,16 +91,18 @@ def load_games(filenames):
 def main(args=sys.argv):
     errorbots = 'FredericWantiez Sametine aikinogard ozadDaro cymb01 byrd106 kxmbrian sscholle patrisk jvienna ardapekis fbastos1'.split()
     games = load_games(args[1:])
-    game_results = [{u['username']: int(u['rank']) for u in g['users'] if u['username'] not in errorbots}
+    game_results = [{u['userID']: int(u['rank']) for u in g['users'] if u['username'] not in errorbots}
             for g in games if sum(u['username'] not in errorbots for u in g['users']) > 1]  #only include games with 2 or more non-error bot competitors
     if not check_games(game_results):
         return
+    name_lookup = {u['userID']: u['username'] for g in games for u in g['users']}
+    print('%d players in name lookup.' % len(name_lookup))
     ratings = plackett_luce(game_results)
-    ratings = list(ratings.items()).sort(key=lambda x: -x[1])
+    ratings = sorted(list(ratings.items()), key = lambda x: x[1], reverse = True)
     ratings = normalize_ratings(ratings[:40])
 
     for rank, (player, rating) in enumerate(ratings, start=1):
-        print("%d: %s (%.4f)" % (rank, player, rating))
+        print("%d: %s (%.4f)" % (rank, name_lookup[player], rating))
 
 if __name__ == "__main__":
     main()
