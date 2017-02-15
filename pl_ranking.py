@@ -23,7 +23,7 @@ def plackett_luce(rankings):
     pgdiff = 100
     iteration = 0
     while gdiff > 1e-9:
-        denoms = {player : sum(sum(0 if player not in ranking or ranking[player] < place else 1 / sum(gammas[finisher] for finisher in ranking if ranking[finisher] >= place) for place in range(1,len(ranking))) for ranking in rankings) for player in players}
+        denoms = {player : sum(sum(0 if player not in ranking or ranking[player] < place else 1 / sum(gammas[finisher] for finisher in ranking if ranking[finisher] >= place) for place in ranking.values()) for ranking in rankings) for player in players}
         _gammas = gammas
         gammas = {player : ws[player] / denoms[player] for player in players}
         pgdiff = gdiff
@@ -117,7 +117,10 @@ def main(args=sys.argv):
             for g in games]
 
     winners, losers = check_games(game_results)
-    print("%d winners, %d losers" % (len(winners), len(losers)))
+    if winners:
+        print("%d winners" % (len(winners),))
+    if losers:
+        print("%d losers" % (len(losers),))
 
     # Add a fake player with one win and loss against everyone
     players = set()
