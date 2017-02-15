@@ -44,7 +44,7 @@ def check_games(games):
     """Check that every player does not come in 1st and does not come in last
     at least once each."""
     pc = dict()
-    for game in game_results:
+    for game in games:
         max_rank = 0
         max_user = None
         for user, rank in game.items():
@@ -66,7 +66,6 @@ def check_games(games):
                 # This should never happen.
                 raise Exception("Player with neither win or loss %s" % (player,))
             print("Player %s has no %s" % (player, "win" if win else "loss"))
-            print("%d %d" % (win, loss))
         return False
     return True
 
@@ -91,7 +90,7 @@ def main(args=sys.argv):
     games = load_games(args[1:])
     game_results = [{u['username']: int(u['rank']) for u in g['users']}
             for g in games]
-    if not check_games:
+    if not check_games(game_results):
         return
     ratings = plackett_luce(game_results)
     ratings = list(ratings.items()).sort(key=lambda x: -x[1])
