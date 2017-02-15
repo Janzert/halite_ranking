@@ -24,18 +24,17 @@ def plackett_luce(rankings):
     gdiff = 10
     pgdiff = 100
     iteration = 0
-    while gdiff > 1.5e-6:   #1e-12:
+    while gdiff > 1.5e-6:
         denoms = {player : sum(sum(0 if ranking.get(player,-1) < place else 1 / sum(gammas[finisher] for finisher, finish in ranking.items() if finish >= place) for place in sorted(ranking.values())[:-1]) for ranking in rankings) for player in players}
+
         _gammas = gammas
         gammas = {player : ws[player] / denoms[player] for player in players}
         pgdiff = gdiff
         gdiff = sum((gamma - _gammas[player]) ** 2 for player, gamma in gammas.items())
         iteration += 1
-        print("%d gd=%.2e" % (iteration, gdiff))    # I wanted to be able to see the previous values
+        print("%d gd=%.2e" % (iteration, gdiff))
         if gdiff > pgdiff:
-            print()
             print("Gamma difference increased, %.4e %.4e" % (gdiff, pgdiff))
-    print()
     return gammas
 
 def normalize_ratings(ratings):
@@ -61,15 +60,39 @@ def check_games(games):
                 pc.setdefault(user, [1, 1])[0] = 0
     missing_wl = sum(w+l for w, l in pc.values())
     if missing_wl > 0:
+        winners = list()
+        losers = list()
         for player, (win, loss) in pc.items():
             if not win and not loss:
                 continue
             if win and loss:
                 # This should never happen.
                 raise Exception("Player with neither win or loss %s" % (player,))
+            if win:
+                losers.append(player)
+            else:
+                winners.append(player)
             print("Player %s has no %s" % (player, "win" if win else "loss"))
-        return False
-    return True
+        return winners, losers
+    return None, None
+
+def filter_in_players(games, players):
+    keep_players = set(players)
+    filtered = list()
+    for game in games:
+        game_players = set(game.keys())
+        if game_players & keep_players:
+            filtered.append(game)
+    return filtered
+
+def filter_out_players(games, players):
+    drop_players = set(players)
+    filtered = list()
+    for game in games:
+        game_players = set(game.keys())
+        if not (game_players & drop_players):
+            filtered.append(game)
+    return filtered
 
 def load_games(filenames):
     games = list()
@@ -93,16 +116,35 @@ def main(args=sys.argv):
     games = load_games(args[1:])
     game_results = [{u['userID']: int(u['rank']) for u in g['users'] if u['username'] not in errorbots}
             for g in games if sum(u['username'] not in errorbots for u in g['users']) > 1]  #only include games with 2 or more non-error bot competitors
-    if not check_games(game_results):
-        return
-    name_lookup = {u['userID']: u['username'] for g in games for u in g['users']}
-    print('%d players in name lookup.' % len(name_lookup))
+    
+    winners, losers = check_games(game_results)
+    if winners:
+        print("%d winners" % (len(winners),))
+    if losers:
+        print("%d losers" % (len(losers),))
+
+    # Add a fake player with one win and loss against everyone
+    players = set()
+    for game in game_results:
+        players |= set(p for p in game.keys())
+    print("%d players" % (len(players),))
+    fake_games = list()
+    for p in players:
+        fake_games.append({0: 1, p: 2})
+        fake_games.append({0: 2, p: 1})
+
+    game_results += fake_games
     ratings = plackett_luce(game_results)
-    ratings = sorted(list(ratings.items()), key = lambda x: x[1], reverse = True)
+
+    # remove fake player
+    del ratings[0]
+
+    ratings = list(ratings.items())
+    ratings.sort(key=lambda x: -x[1])
     ratings = normalize_ratings(ratings[:40])
 
     for rank, (player, rating) in enumerate(ratings, start=1):
-        print("%d: %s (%.4f)" % (rank, name_lookup[player], rating))
+        print("%d: %.4f - %s" % (rank, rating, player))
 
 if __name__ == "__main__":
     main()
