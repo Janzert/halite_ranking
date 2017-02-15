@@ -59,15 +59,39 @@ def check_games(games):
                 pc.setdefault(user, [1, 1])[0] = 0
     missing_wl = sum(w+l for w, l in pc.values())
     if missing_wl > 0:
+        winners = list()
+        losers = list()
         for player, (win, loss) in pc.items():
             if not win and not loss:
                 continue
             if win and loss:
                 # This should never happen.
                 raise Exception("Player with neither win or loss %s" % (player,))
+            if win:
+                losers.append(player)
+            else:
+                winners.append(player)
             print("Player %s has no %s" % (player, "win" if win else "loss"))
-        return False
-    return True
+        return winners, losers
+    return None, None
+
+def filter_in_players(games, players):
+    keep_players = set(players)
+    filtered = list()
+    for game in games:
+        game_players = set(game.keys())
+        if game_players & keep_players:
+            filtered.append(game)
+    return filtered
+
+def filter_out_players(games, players):
+    drop_players = set(players)
+    filtered = list()
+    for game in games:
+        game_players = set(game.keys())
+        if not (game_players & drop_players):
+            filtered.append(game)
+    return filtered
 
 def load_games(filenames):
     games = list()
@@ -88,16 +112,35 @@ def load_games(filenames):
 
 def main(args=sys.argv):
     games = load_games(args[1:])
-    game_results = [{u['username']: int(u['rank']) for u in g['users']}
+    game_results = [{"%s (%s)" % (u['username'], u['userID']): int(u['rank'])
+        for u in g['users']}
             for g in games]
-    if not check_games(game_results):
-        return
+
+    winners, losers = check_games(game_results)
+    print("%d winners, %d losers" % (len(winners), len(losers)))
+
+    # Add a fake player with one win and loss against everyone
+    players = set()
+    for game in game_results:
+        players |= set(p for p in game.keys())
+    print("%d players" % (len(players),))
+    fake_games = list()
+    for p in players:
+        fake_games.append({0: 1, p: 2})
+        fake_games.append({0: 2, p: 1})
+
+    game_results += fake_games
     ratings = plackett_luce(game_results)
-    ratings = list(ratings.items()).sort(key=lambda x: -x[1])
-    ratings = normalize_ratings(ratings[:40])
+
+    # remove fake player
+    del ratings[0]
+
+    ratings = list(ratings.items())
+    ratings.sort(key=lambda x: -x[1])
+    ratings = normalize_ratings(ratings[:20])
 
     for rank, (player, rating) in enumerate(ratings, start=1):
-        print("%d: %s (%.4f)" % (rank, player, rating))
+        print("%d: %.4f - %s" % (rank, rating, player))
 
 if __name__ == "__main__":
     main()
