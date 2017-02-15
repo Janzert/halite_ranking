@@ -18,14 +18,14 @@ def plackett_luce(rankings):
     normalized by the calling function if desired.'''
     players = set(key for ranking in rankings for key in ranking.keys())
     print('%d players loaded.' % len(players))
-    ws = Counter(name for ranking in rankings for name, finish in ranking.items() if finish < len(ranking))
+    ws = Counter(name for ranking in rankings for name, finish in ranking.items() if finish < max(ranking.values()))
     gammas = {player : 1.0 / len(players) for player in players}
     _gammas = {player : 0 for player in players}
     gdiff = 10
     pgdiff = 100
     iteration = 0
-    while gdiff > 1e-9:
-        denoms = {player : sum(sum(0 if player not in ranking or ranking[player] < place else 1 / sum(gammas[finisher] for finisher in ranking if ranking[finisher] >= place) for place in ranking.values()) for ranking in rankings) for player in players}
+    while gdiff > 1.5e-6:   #1e-12:
+        denoms = {player : sum(sum(0 if ranking.get(player,-1) < place else 1 / sum(gammas[finisher] for finisher, finish in ranking.items() if finish >= place) for place in sorted(ranking.values())[:-1]) for ranking in rankings) for player in players}
         _gammas = gammas
         gammas = {player : ws[player] / denoms[player] for player in players}
         pgdiff = gdiff
@@ -89,7 +89,7 @@ def load_games(filenames):
     return games
 
 def main(args=sys.argv):
-    errorbots = 'FredericWantiez Sametine aikinogard ozadDaro cymb01 byrd106 kxmbrian sscholle patrisk jvienna ardapekis fbastos1'.split()
+    errorbots = set('FredericWantiez Sametine aikinogard ozadDaro cymb01 byrd106 kxmbrian sscholle patrisk jvienna ardapekis fbastos1'.split())
     games = load_games(args[1:])
     game_results = [{u['userID']: int(u['rank']) for u in g['users'] if u['username'] not in errorbots}
             for g in games if sum(u['username'] not in errorbots for u in g['users']) > 1]  #only include games with 2 or more non-error bot competitors
