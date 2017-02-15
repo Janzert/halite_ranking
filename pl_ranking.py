@@ -2,15 +2,16 @@
 
 import json
 import sys
+import random
 from collections import Counter
 
 
 # Taken from https://github.com/erdman/plackett-luce/blob/master/plackett_luce.py
 def plackett_luce(rankings):
     ''' Returns dictionary containing player : plackett_luce_parameter keys
-    and values. This algorithm requires that every player avoids coming in
-    last place at least once and that every player fails to win at least once.
-    If this assumption fails (not checked), the algorithm will diverge.
+    and values. This algorithm requires that the set of players be unable to be
+    split into two disjoint sets where nobody from set A has beaten anyone from
+    set B.  If this assumption fails (not checked), the algorithm will diverge.
     Input is a list of dictionaries, where each dictionary corresponds to an
     individual ranking and contains the player : finish for that ranking.
     The plackett_luce parameters returned are un-normalized and can be
@@ -29,11 +30,9 @@ def plackett_luce(rankings):
         pgdiff = gdiff
         gdiff = sum((gamma - _gammas[player]) ** 2 for player, gamma in gammas.items())
         iteration += 1
-        print("\r%d gd=%.2e" % (iteration, gdiff,), end="")
+        print("%d gd=%.2e" % (iteration, gdiff))
         if gdiff > pgdiff:
-            print()
             print("Gamma difference increased, %.4e %.4e" % (gdiff, pgdiff))
-    print()
     return gammas
 
 def normalize_ratings(ratings):
@@ -111,10 +110,10 @@ def load_games(filenames):
     return games
 
 def main(args=sys.argv):
+    errorbots = 'FredericWantiez Sametine aikinogard ozadDaro cymb01 byrd106 kxmbrian sscholle patrisk jvienna ardapekis fbastos1'.split()
     games = load_games(args[1:])
-    game_results = [{"%s (%s)" % (u['username'], u['userID']): int(u['rank'])
-        for u in g['users']}
-            for g in games]
+    game_results = [{"%s (%s)" % (u['username'], u['userID']): int(u['rank']) for u in g['users'] if u['username'] not in errorbots}
+            for g in games if sum(u['username'] not in errorbots for u in g['users']) > 1]  #only include games with 2 or more non-error bot competitors
 
     winners, losers = check_games(game_results)
     if winners:
@@ -140,7 +139,7 @@ def main(args=sys.argv):
 
     ratings = list(ratings.items())
     ratings.sort(key=lambda x: -x[1])
-    ratings = normalize_ratings(ratings[:20])
+    ratings = normalize_ratings(ratings[:40])
 
     for rank, (player, rating) in enumerate(ratings, start=1):
         print("%d: %.4f - %s" % (rank, rating, player))
