@@ -2,20 +2,22 @@
 
 import json
 import sys
+import random
 from collections import Counter
 
 
 # Taken from https://github.com/erdman/plackett-luce/blob/master/plackett_luce.py
 def plackett_luce(rankings):
     ''' Returns dictionary containing player : plackett_luce_parameter keys
-    and values. This algorithm requires that every player avoids coming in
-    last place at least once and that every player fails to win at least once.
-    If this assumption fails (not checked), the algorithm will diverge.
+    and values. This algorithm requires that the set of players be unable to be
+    split into two disjoint sets where nobody from set A has beaten anyone from
+    set B.  If this assumption fails (not checked), the algorithm will diverge.
     Input is a list of dictionaries, where each dictionary corresponds to an
     individual ranking and contains the player : finish for that ranking.
     The plackett_luce parameters returned are un-normalized and can be
     normalized by the calling function if desired.'''
     players = set(key for ranking in rankings for key in ranking.keys())
+    print('%d players loaded.' % len(players))
     ws = Counter(name for ranking in rankings for name, finish in ranking.items() if finish < len(ranking))
     gammas = {player : 1.0 / len(players) for player in players}
     _gammas = {player : 0 for player in players}
@@ -23,13 +25,13 @@ def plackett_luce(rankings):
     pgdiff = 100
     iteration = 0
     while gdiff > 1e-9:
-        denoms = {player : sum(sum(0 if player not in ranking or ranking[player] < place else 1 / sum(gammas[finisher] for finisher in ranking if ranking[finisher] >= place) for place in range(1,len(ranking))) for ranking in rankings) for player in players}
+        denoms = {player : sum(sum(0 if player not in ranking or ranking[player] < place else 1 / sum(gammas[finisher] for finisher in ranking if ranking[finisher] >= place) for place in ranking.values()) for ranking in rankings) for player in players}
         _gammas = gammas
         gammas = {player : ws[player] / denoms[player] for player in players}
         pgdiff = gdiff
         gdiff = sum((gamma - _gammas[player]) ** 2 for player, gamma in gammas.items())
         iteration += 1
-        print("\r%d gd=%.2e" % (iteration, gdiff,), end="")
+        print("%d gd=%.2e" % (iteration, gdiff))    # I wanted to be able to see the previous values
         if gdiff > pgdiff:
             print()
             print("Gamma difference increased, %.4e %.4e" % (gdiff, pgdiff))
@@ -87,9 +89,10 @@ def load_games(filenames):
     return games
 
 def main(args=sys.argv):
+    errorbots = 'FredericWantiez Sametine aikinogard ozadDaro cymb01 byrd106 kxmbrian sscholle patrisk jvienna ardapekis fbastos1'.split()
     games = load_games(args[1:])
-    game_results = [{u['username']: int(u['rank']) for u in g['users']}
-            for g in games]
+    game_results = [{u['username']: int(u['rank']) for u in g['users'] if u['username'] not in errorbots}
+            for g in games if sum(u['username'] not in errorbots for u in g['users']) > 1]  #only include games with 2 or more non-error bot competitors
     if not check_games(game_results):
         return
     ratings = plackett_luce(game_results)
