@@ -5,8 +5,15 @@ import json
 import sys
 from collections import Counter
 
+"""
+Implementation from erdman at https://github.com/erdman/plackett-luce/blob/master/plackett_luce.py
 
-# Taken from https://github.com/erdman/plackett-luce/blob/master/plackett_luce.py
+as given in:
+MM Algorithms For Generalized Bradley–Terry Models By David R. Hunter
+Section 5
+
+found at http://projecteuclid.org/download/pdf_1/euclid.aos/1079120141
+"""
 def plackett_luce(rankings, tolerance):
     ''' Returns dictionary containing player : plackett_luce_parameter keys
     and values. This algorithm requires that the set of players be unable to be
@@ -120,7 +127,7 @@ def main(args=sys.argv[1:]):
             help="Exclude the bottom, always crash, bots")
     parser.add_argument("-x", "--exclude", action="append",
             help="Exclude player")
-    parser.add_argument("-t", "--tolerance", type=float, default=1.5e-6,
+    parser.add_argument("-t", "--tolerance", type=float, default=1e-9,
             help="Set rating convergance tolerance.")
     parser.add_argument("-d", "--display", type=int, default=40,
             help="Limit display of rating to top N (0 for all)")
@@ -151,9 +158,9 @@ def main(args=sys.argv[1:]):
 
     winners, losers = check_games(game_results)
     if winners:
-        print("%d winners" % (len(winners),))
+        print("%d were undefeated" % (len(winners),))
     if losers:
-        print("%d losers" % (len(losers),))
+        print("%d never won" % (len(losers),))
     if not config.anchor_player and (winners or losers):
         print("WARNING: Ratings will almost certainly not converge.\n(Maybe run with --anchor-player)")
 
