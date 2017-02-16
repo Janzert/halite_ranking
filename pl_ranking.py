@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
+import argparse
 import json
 import sys
-import random
 from collections import Counter
 
 
 # Taken from https://github.com/erdman/plackett-luce/blob/master/plackett_luce.py
-def plackett_luce(rankings):
+def plackett_luce(rankings, tolerance=1e-20):
     ''' Returns dictionary containing player : plackett_luce_parameter keys
     and values. This algorithm requires that the set of players be unable to be
     split into two disjoint sets where nobody from set A has beaten anyone from
@@ -17,14 +17,13 @@ def plackett_luce(rankings):
     The plackett_luce parameters returned are un-normalized and can be
     normalized by the calling function if desired.'''
     players = set(key for ranking in rankings for key in ranking.keys())
-    print('%d players loaded.' % len(players))
     ws = Counter(name for ranking in rankings for name, finish in ranking.items() if finish < max(ranking.values()))
     gammas = {player : 1.0 / len(players) for player in players}
     _gammas = {player : 0 for player in players}
     gdiff = 10
     pgdiff = 100
     iteration = 0
-    while gdiff > 1.5e-6:
+    while gdiff > tolerance:
         denoms = {player : sum(sum(0 if ranking.get(player,-1) < place else 1 / sum(gammas[finisher] for finisher, finish in ranking.items() if finish >= place) for place in sorted(ranking.values())[:-1]) for ranking in rankings) for player in players}
 
         _gammas = gammas
@@ -111,37 +110,69 @@ def load_games(filenames):
     print("%d games loaded." % (len(games),))
     return games
 
-def main(args=sys.argv):
-    errorbots = set('FredericWantiez Sametine aikinogard ozadDaro cymb01 byrd106 kxmbrian sscholle patrisk jvienna ardapekis fbastos1'.split())
-    games = load_games(args[1:])
-    game_results = [{u['userID']: int(u['rank']) for u in g['users'] if u['username'] not in errorbots}
-            for g in games if sum(u['username'] not in errorbots for u in g['users']) > 1]  #only include games with 2 or more non-error bot competitors
-    
+def main(args=sys.argv[1:]):
+    parser = argparse.ArgumentParser("Create Plackett-Luce ratings from game data.")
+    parser.add_argument("game_files", nargs="+",
+            help="Json files containing game data.")
+    parser.add_argument("-a", "--anchor-player", action="store_true",
+            help="Add a player with a win and loss against every other player.")
+    parser.add_argument("-r", "--remove-bottom", action="store_true",
+            help="Exclude the bottom, always crash, bots")
+    parser.add_argument("-x", "--exclude", action="append",
+            help="Exclude player")
+    parser.add_argument("-t", "--tolerance", type=float, default=1.5e-6,
+            help="Set rating convergance tolerance.")
+    parser.add_argument("-d", "--display", type=int, default=40,
+            help="Limit display of rating to top N (0 for all)")
+    config = parser.parse_args(args)
+
+    excluded_players = []
+    if config.exclude:
+        excluded_players = config.exclude
+        print("Excluding %s" % (excluded_players,))
+    if config.remove_bottom:
+        print("Removing crash bots.")
+        excluded_players += 'FredericWantiez Sametine aikinogard ozadDaro cymb01 byrd106 kxmbrian sscholle patrisk jvienna ardapekis fbastos1'.split()
+    games = load_games(config.game_files)
+    game_results = [{"%s (%s)" % (u['username'], u['userID']): int(u['rank'])
+        for u in g['users'] if u['username'] not in excluded_players}
+            for g in games if sum(u['username'] not in excluded_players
+                for u in g['users']) > 1]
+                    #only include games with 2 or more non-excluded competitors
+
     winners, losers = check_games(game_results)
     if winners:
         print("%d winners" % (len(winners),))
     if losers:
         print("%d losers" % (len(losers),))
+    if not config.anchor_player and (winners or losers):
+        print("WARNING: Ratings will almost certainly not converge.\n(Maybe run with --anchor-player)")
 
-    # Add a fake player with one win and loss against everyone
     players = set()
     for game in game_results:
         players |= set(p for p in game.keys())
     print("%d players" % (len(players),))
-    fake_games = list()
-    for p in players:
-        fake_games.append({0: 1, p: 2})
-        fake_games.append({0: 2, p: 1})
 
-    game_results += fake_games
-    ratings = plackett_luce(game_results)
+    if config.anchor_player:
+        # Add a fake player with one win and loss against everyone
+        print("Adding anchor player.")
+        fake_games = list()
+        for p in players:
+            fake_games.append({0: 1, p: 2})
+            fake_games.append({0: 2, p: 1})
+        game_results += fake_games
 
-    # remove fake player
-    del ratings[0]
+    ratings = plackett_luce(game_results, config.tolerance)
+
+    if config.anchor_player:
+        # remove anchor player
+        del ratings[0]
 
     ratings = list(ratings.items())
     ratings.sort(key=lambda x: -x[1])
-    ratings = normalize_ratings(ratings[:40])
+    if config.display > 0:
+        ratings = ratings[:config.display]
+    ratings = normalize_ratings(ratings)
 
     for rank, (player, rating) in enumerate(ratings, start=1):
         print("%d: %.4f - %s" % (rank, rating, player))
