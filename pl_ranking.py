@@ -7,7 +7,7 @@ from collections import Counter
 
 
 # Taken from https://github.com/erdman/plackett-luce/blob/master/plackett_luce.py
-def plackett_luce(rankings, tolerance=1e-20):
+def plackett_luce(rankings, tolerance):
     ''' Returns dictionary containing player : plackett_luce_parameter keys
     and values. This algorithm requires that the set of players be unable to be
     split into two disjoint sets where nobody from set A has beaten anyone from
