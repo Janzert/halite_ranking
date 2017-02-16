@@ -124,6 +124,8 @@ def main(args=sys.argv[1:]):
             help="Set rating convergance tolerance.")
     parser.add_argument("-d", "--display", type=int, default=40,
             help="Limit display of rating to top N (0 for all)")
+    parser.add_argument("-n", "--num-games", type=int,
+            help="Limit the number of games used (positive for first, negative for last")
     config = parser.parse_args(args)
 
     excluded_players = []
@@ -139,6 +141,13 @@ def main(args=sys.argv[1:]):
             for g in games if sum(u['username'] not in excluded_players
                 for u in g['users']) > 1]
                     #only include games with 2 or more non-excluded competitors
+    if config.num_games:
+        if config.num_games > 0:
+            game_results = game_results[:config.num_games]
+            print("Using first %d games." % (len(game_results),))
+        else:
+            game_results = game_results[config.num_games:]
+            print("Using last %d games." % (len(game_results),))
 
     winners, losers = check_games(game_results)
     if winners:
