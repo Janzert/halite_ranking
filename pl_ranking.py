@@ -12,7 +12,9 @@ as given in:
 MM Algorithms For Generalized Bradley–Terry Models By David R. Hunter
 Section 5
 
-found at http://projecteuclid.org/download/pdf_1/euclid.aos/1079120141
+Paper found at http://projecteuclid.org/download/pdf_1/euclid.aos/1079120141
+Original matlab code from paper is at
+http://sites.stat.psu.edu/~dhunter/code/btmatlab/
 """
 def plackett_luce(rankings, tolerance):
     ''' Returns dictionary containing player : plackett_luce_parameter keys
@@ -28,10 +30,12 @@ def plackett_luce(rankings, tolerance):
     gammas = {player : 1.0 / len(players) for player in players}
     _gammas = {player : 0 for player in players}
     gdiff = 10
-    pgdiff = 100
     iteration = 0
     while gdiff > tolerance:
-        denoms = {player : sum(sum(0 if ranking.get(player,-1) < place else 1 / sum(gammas[finisher] for finisher, finish in ranking.items() if finish >= place) for place in sorted(ranking.values())[:-1]) for ranking in rankings) for player in players}
+        denoms = {player : sum(sum(0 if ranking.get(player,-1) < place else
+            1 / sum(gammas[finisher] for finisher, finish in ranking.items() if finish >= place)
+            for place in sorted(ranking.values())[:-1])
+            for ranking in rankings) for player in players}
 
         _gammas = gammas
         gammas = {player : ws[player] / denoms[player] for player in players}
@@ -133,6 +137,8 @@ def main(args=sys.argv[1:]):
             help="Limit display of rating to top N (0 for all)")
     parser.add_argument("-n", "--num-games", type=int,
             help="Limit the number of games used (positive for first, negative for last")
+    parser.add_argument("-o", "--out-file",
+            help="If specified will write the full ratings to given filename")
     config = parser.parse_args(args)
 
     excluded_players = []
@@ -186,6 +192,13 @@ def main(args=sys.argv[1:]):
 
     ratings = list(ratings.items())
     ratings.sort(key=lambda x: -x[1])
+
+    if config.out_file:
+        ratings = normalize_ratings(ratings)
+        with open(config.out_file, 'w') as out:
+            for rank, (player, rating) in enumerate(ratings, start=1):
+                out.write('%d,%e,%s\n' % (rank, rating, player))
+
     if config.display > 0:
         ratings = ratings[:config.display]
     ratings = normalize_ratings(ratings)
