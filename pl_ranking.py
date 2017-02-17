@@ -2,7 +2,9 @@
 
 import argparse
 import json
+import math
 import sys
+import time
 from collections import Counter
 
 """
@@ -31,6 +33,7 @@ def plackett_luce(rankings, tolerance):
     _gammas = {player : 0 for player in players}
     gdiff = 10
     iteration = 0
+    start = time.perf_counter()
     while gdiff > tolerance:
         denoms = {player : sum(sum(0 if ranking.get(player,-1) < place else
             1 / sum(gammas[finisher] for finisher, finish in ranking.items() if finish >= place)
@@ -40,11 +43,13 @@ def plackett_luce(rankings, tolerance):
         _gammas = gammas
         gammas = {player : ws[player] / denoms[player] for player in players}
         pgdiff = gdiff
-        gdiff = sum((gamma - _gammas[player]) ** 2 for player, gamma in gammas.items())
+        gdiff = math.sqrt(sum((gamma - _gammas[player]) ** 2 for player, gamma in gammas.items()))
         iteration += 1
-        print("%d gd=%.2e" % (iteration, gdiff))
+        now = time.perf_counter()
+        print("%d %.2f seconds L2=%.2e" % (iteration, now-start, gdiff))
         if gdiff > pgdiff:
             print("Gamma difference increased, %.4e %.4e" % (gdiff, pgdiff))
+        start = now
     return gammas
 
 def normalize_ratings(ratings):
