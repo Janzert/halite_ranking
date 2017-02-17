@@ -7,6 +7,14 @@ import sys
 import time
 from collections import Counter
 
+HAVE_NUMPY = False
+try:
+    import numpy
+    HAVE_NUMPY = True
+except ImportError:
+    pass
+
+
 """
 Implementation from erdman at https://github.com/erdman/plackett-luce/blob/master/plackett_luce.py
 
@@ -18,7 +26,7 @@ Paper found at http://projecteuclid.org/download/pdf_1/euclid.aos/1079120141
 Original matlab code from paper is at
 http://sites.stat.psu.edu/~dhunter/code/btmatlab/
 """
-def plackett_luce(rankings, tolerance):
+def pl_python(rankings, tolerance):
     ''' Returns dictionary containing player : plackett_luce_parameter keys
     and values. This algorithm requires that the set of players be unable to be
     split into two disjoint sets where nobody from set A has beaten anyone from
@@ -51,6 +59,47 @@ def plackett_luce(rankings, tolerance):
             print("Gamma difference increased, %.4e %.4e" % (gdiff, pgdiff))
         start = now
     return gammas
+plackett_luce = pl_python
+
+def pl_numpy(rankings, tolerance):
+    """ Numpy implementation based directly off of the original matlab code.
+    """
+    players = list(set(key for ranking in rankings for key in ranking.keys()))
+
+    ws = Counter(name for ranking in rankings for name, finish in ranking.items() if finish < max(ranking.values()))
+
+    # matlab code is 1-based, we're using 0-based so be wary of off-by-ones
+    a = numpy.array([(players.index(name) + 1, ranking_index, finish) for ranking_index, ranking in enumerate(rankings, 1) for name, finish in ranking.items()], dtype = int)
+    M, N, P = numpy.max(a, axis=0)   #finding the counts of players and contests and the max rank ... I would have used len, but following orignal code
+    f = numpy.zeros((P, N), dtype=int)
+    r = numpy.zeros((M, N), dtype=int)
+    f[a[:,2] - 1, a[:,1] - 1] = a[:,0]
+    r[a[:,0] - 1, a[:,1] - 1] = a[:,2] + P * (a[:,1] - 1)
+
+    w = numpy.array([ws[player] for player in players], dtype=int)
+    pp = sum(f > 0)  # players per contest
+    #~ pp += numpy.arange(-1, N*P-1, P)  # this isn't necessary
+
+    gammas = numpy.ones((M)) / M
+    gdiff = 1
+    iterations = 0
+
+    while gdiff > tolerance:
+        iterations += 1
+        g = (f > 0).choose(0, gammas[f - 1].squeeze())
+        g = numpy.cumsum(g[::-1,:],axis=0)[::-1,:]   #reverse vertical cumsum
+        g[pp - 1, numpy.arange(numpy.shape(g)[1])] = 0
+        g[g > 0] = 1 / g[g > 0]
+        numpy.cumsum(g,axis=0,out=g)
+        r2 = (r > 0).choose(0, g.T.flat[r - 1])  #array indexing like Matlab https://stackoverflow.com/questions/20688881/numpy-assignment-and-indexing-as-matlab
+        _gammas = gammas
+        gammas = w / numpy.sum(r2,axis=1)
+        gdiff = numpy.linalg.norm(gammas - _gammas)
+        print("%d gd=%.2e" % (iterations, gdiff))
+
+    return {player : gamma for player, gamma in zip(players, gammas)}
+if HAVE_NUMPY:
+    plackett_luce = pl_numpy
 
 def normalize_ratings(ratings):
     normalization_constant = sum(value for p, value in ratings)
@@ -144,7 +193,14 @@ def main(args=sys.argv[1:]):
             help="Limit the number of games used (positive for first, negative for last")
     parser.add_argument("-o", "--out-file",
             help="If specified will write the full ratings to given filename")
+    parser.add_argument("--no-numpy", action="store_true",
+            help="Force use of native implementation, even if numpy is available")
     config = parser.parse_args(args)
+
+    if config.no_numpy:
+        global plackett_luce
+        plackett_luce = pl_python
+        print("Disabled numpy use.")
 
     excluded_players = []
     if config.exclude:
