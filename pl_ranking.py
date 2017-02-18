@@ -83,7 +83,7 @@ def pl_numpy(rankings, tolerance):
     gammas = numpy.ones((M)) / M
     gdiff = 1
     iterations = 0
-
+    start = time.perf_counter()
     while gdiff > tolerance:
         iterations += 1
         g = (f > 0).choose(0, gammas[f - 1].squeeze())
@@ -94,8 +94,13 @@ def pl_numpy(rankings, tolerance):
         r2 = (r > 0).choose(0, g.T.flat[r - 1])  #array indexing like Matlab https://stackoverflow.com/questions/20688881/numpy-assignment-and-indexing-as-matlab
         _gammas = gammas
         gammas = w / numpy.sum(r2,axis=1)
+        pgdiff = gdiff
         gdiff = numpy.linalg.norm(gammas - _gammas)
-        print("%d gd=%.2e" % (iterations, gdiff))
+        now = time.perf_counter()
+        print("%d %.2f seconds L2=%.2e" % (iterations, now-start, gdiff))
+        if gdiff > pgdiff:
+            print("Gamma difference increased, %.4e %.4e" % (gdiff, pgdiff))
+        start = now
 
     return {player : gamma for player, gamma in zip(players, gammas)}
 if HAVE_NUMPY:
