@@ -1,0 +1,9 @@
+*~
+.*
+
+*.json
+*.csv
+*.zip
+
+venv/
+final-games/
