@@ -5,5 +5,6 @@
 *.csv
 *.zip
 
+__pycache__/
 venv/
 final-games/

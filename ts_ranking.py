@@ -6,6 +6,7 @@ import math
 import sys
 
 import trueskill
+from utility import load_games
 
 def ts_ratings(game_results):
     players = {p: trueskill.Rating() for p in
@@ -22,23 +23,6 @@ def ts_ratings(game_results):
             print("Rated %d games" % (gnum,))
     print("Rated %d games" % (gnum,))
     return players
-
-def load_games(filenames):
-    games = list()
-    for filename in filenames:
-        print("Reading %s" % (filename,))
-        with open(filename) as gfile:
-            games += json.load(gfile)
-    gids = set()
-    uniques = list()
-    for g in games:
-        if g['gameID'] not in gids:
-            uniques.append(g)
-            gids.add(g['gameID'])
-    games = uniques
-    games.sort(key=lambda x: int(x['gameID']))
-    print("%d games loaded." % (len(games),))
-    return games
 
 def main(args=sys.argv[1:]):
     parser = argparse.ArgumentParser("Create TrueSkill ratings from game data.")
@@ -66,8 +50,9 @@ def main(args=sys.argv[1:]):
             game_results = game_results[config.num_games:]
             print("Using last %d games." % (len(game_results),))
 
-    if config.tau:
-        trueskill.tau = config.tau
+    if config.tau is not None:
+        trueskill.setup(tau = config.tau)
+        print("Using tau %g" % (trueskill.global_env().tau,))
 
     ratings = ts_ratings(game_results)
 

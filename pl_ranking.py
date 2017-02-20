@@ -7,6 +7,8 @@ import sys
 import time
 from collections import Counter
 
+from utility import load_games
+
 HAVE_NUMPY = False
 try:
     import numpy
@@ -149,41 +151,6 @@ def check_games(games):
             print("Player %s has no %s" % (player, "win" if win else "loss"))
         return winners, losers
     return None, None
-
-def filter_in_players(games, players):
-    keep_players = set(players)
-    filtered = list()
-    for game in games:
-        game_players = set(game.keys())
-        if game_players & keep_players:
-            filtered.append(game)
-    return filtered
-
-def filter_out_players(games, players):
-    drop_players = set(players)
-    filtered = list()
-    for game in games:
-        game_players = set(game.keys())
-        if not (game_players & drop_players):
-            filtered.append(game)
-    return filtered
-
-def load_games(filenames):
-    games = list()
-    for filename in filenames:
-        print("Reading %s" % (filename,))
-        with open(filename) as gfile:
-            games += json.load(gfile)
-    gids = set()
-    uniques = list()
-    for g in games:
-        if g['gameID'] not in gids:
-            uniques.append(g)
-            gids.add(g['gameID'])
-    games = uniques
-    games.sort(key=lambda x: int(x['gameID']))
-    print("%d games loaded." % (len(games),))
-    return games
 
 def main(args=sys.argv[1:]):
     parser = argparse.ArgumentParser("Create Plackett-Luce ratings from game data.")
