@@ -61,7 +61,7 @@ def pl_python(rankings, tolerance):
     return gammas
 plackett_luce = pl_python
 
-def pl_numpy(rankings, tolerance):
+def pl_numpy(rankings, tolerance, init_ratings=None):
     """ Numpy implementation based directly off of the original matlab code.
     """
     players = list(set(key for ranking in rankings for key in ranking.keys()))
@@ -80,7 +80,10 @@ def pl_numpy(rankings, tolerance):
     pp = sum(f > 0)  # players per contest
     #~ pp += numpy.arange(-1, N*P-1, P)  # this isn't necessary
 
-    gammas = numpy.ones((M)) / M
+    if init_ratings:
+        gammas = numpy.array([init_ratings[player] for player in players])
+    else:
+        gammas = numpy.ones((M)) / M
     gdiff = 1
     iterations = 0
     start = time.perf_counter()
@@ -94,6 +97,8 @@ def pl_numpy(rankings, tolerance):
         r2 = (r > 0).choose(0, g.T.flat[r - 1])  #array indexing like Matlab https://stackoverflow.com/questions/20688881/numpy-assignment-and-indexing-as-matlab
         _gammas = gammas
         gammas = w / numpy.sum(r2,axis=1)
+        normalization_constant = numpy.sum(gammas)
+        gammas = gammas / normalization_constant
         pgdiff = gdiff
         gdiff = numpy.linalg.norm(gammas - _gammas)
         now = time.perf_counter()
@@ -198,6 +203,8 @@ def main(args=sys.argv[1:]):
             help="Limit the number of games used (positive for first, negative for last")
     parser.add_argument("-o", "--out-file",
             help="If specified will write the full ratings to given filename")
+    parser.add_argument("-p", "--previous-ratings",
+            help="If specified will read initial ratings from given filename")
     parser.add_argument("--no-numpy", action="store_true",
             help="Force use of native implementation, even if numpy is available")
     config = parser.parse_args(args)
@@ -206,6 +213,14 @@ def main(args=sys.argv[1:]):
         global plackett_luce
         plackett_luce = pl_python
         print("Disabled numpy use.")
+
+    init_ratings = None
+    if config.previous_ratings:
+        init_ratings = dict()
+        with open(config.previous_ratings) as rfile:
+            for line in rfile:
+                rank, player, rating = line.split(",")
+                init_ratings[player.strip()] = float(rating)
 
     excluded_players = []
     if config.exclude:
@@ -250,7 +265,7 @@ def main(args=sys.argv[1:]):
             fake_games.append({0: 2, p: 1})
         game_results += fake_games
 
-    ratings = plackett_luce(game_results, config.tolerance)
+    ratings = plackett_luce(game_results, config.tolerance, init_ratings)
 
     if config.anchor_player:
         # remove anchor player
@@ -263,14 +278,16 @@ def main(args=sys.argv[1:]):
         ratings = normalize_ratings(ratings)
         with open(config.out_file, 'w') as out:
             for rank, (player, rating) in enumerate(ratings, start=1):
-                out.write('%d,%e,%s\n' % (rank, rating, player))
+                out.write('%d,%s,%r\n' % (rank, player, rating))
 
     if config.display > 0:
         ratings = ratings[:config.display]
     ratings = normalize_ratings(ratings)
 
+    rwidth = math.floor(math.log10(len(ratings))) + 1
+    pwidth = max(len(r[0]) for r in ratings)
     for rank, (player, rating) in enumerate(ratings, start=1):
-        print("%d: %.4f - %s" % (rank, rating, player))
+        print("%*d: %*s %.4f" % (rwidth, rank, pwidth, player, rating))
 
 if __name__ == "__main__":
     main()
