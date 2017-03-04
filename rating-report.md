@@ -1,26 +1,26 @@
 % A Quick Rating System Comparison.
 % Brian (Janzert) Haskin
 
-This is a quick look at the performance of a few different rating systems compared using data from the Halite programming competition. There is no particular reason for the systems chosen other than being ones that handle multiplayer games for which I could get or write an implementation. This did turn out to nicely give two systems to compare against trueskill (the system used during the contest). One is another incremental locally updated system like trueskill and the other is a global update system.
+This is a quick look at the performance of a few different rating systems compared using data from the Halite programming competition. There is no particular reason for the systems chosen other than being ones that handle multiplayer games for which I could get or write an implementation. This did turn out to nicely give two systems to compare against Trueskill (the system used during the contest). One is another incremental locally updated system like Trueskill and the other is a global update system.
 
 Review of Halite data
 =====================
-Halite is a programming competition where games are played in a free-for-all format between 2 to 6 players. The data looked at here is from the finals of the first competition. During the finals all submissions were closed and games were played continuously between the bots. The finals finished with 95562 games between 1592 players.
+[Halite](https://halite.io/) is a programming competition where games are played in a free-for-all format between 2 to 6 players. The data looked at here is from the finals of the first competition. During the finals all submissions were closed and games were played continuously between the bots. The finals finished with 95562 games between 1592 players.
 
-At the start of the finals all bot ratings were reset. So the first games mostly had large differences in skill levels. As the trueskill ratings used in the competition converged the skill differences became much lower in later games.
+At the start of the finals all bot ratings were reset. So the first games mostly had large differences in skill levels. As the Trueskill ratings used in the competition converged the skill differences became much lower in later games.
 
 At various stages throughout the finals the lower ranked players were removed from seeding games. Until only around 400 players were left actively playing. Because of this the number of games a player participated in varies between 73 and 563 games.
 
 Rating systems
 ==============
 
-I look at 3 different systems and 5 varients of those systems total. These are trueskill, a bayesian approximation system by Ruby Weng and Chih-Jen Lin, and the Plackett-Luce model with a minorization-maximization algorithm.
+I look at 3 different systems and 5 varients of those systems total. These are Trueskill, a bayesian approximation system by Ruby Weng and Chih-Jen Lin, and the Plackett-Luce model with a minorization-maximization algorithm.
 
-Trueskill was initially published in 2007 by Herbrich et.al. after being developed at Microsoft for use in ranking and matchmaking on Xbox Live. It builds off of the Glicko system which introduced using a mean and variance to represent a player's skill level. Trueskill generalized the glicko system to an arbitrary number of teams per game and players per team. Trueskill has since then become one of the better known rating systems and is often used as the standard against which new systems are compared. It has also been reimplemented several times in a number of different programming languages. Trueskill was used during the Halite competition using a python trueskill implementation that can be found at trueskill.org. The same implementation was used here.
+Trueskill was initially published in 2007 by [Herbrich et.al.](https://www.microsoft.com/en-us/research/publication/trueskilltm-a-bayesian-skill-rating-system/) after being developed at Microsoft for use in ranking and matchmaking on Xbox Live. It builds off of the Glicko system which introduced the idea of using a mean and variance to represent a player's skill level. Trueskill generalized the Glicko system to an arbitrary number of teams per game and players per team. Trueskill has since then become one of the better known rating systems and is often used as the standard against which new systems are compared. It has also been reimplemented several times in a number of different programming languages. Trueskill was used during the Halite competition using a python Trueskill implementation that can be found at [trueskill.org](http://trueskill.org). The same implementation was used here.
 
-Ruby Weng and Chih-Jen Lin published "A Bayesian Approximation Method for Online Ranking" in 2011, in which they develop a framework to derive simple update rules implementing a number of different models. Here I look at their Bradley-Terry full pair, and Plackett-Luce model update rules. These are referred to as Weng-Lin BT-FP and Weng-Lin PL below. The implementation used was written by myself in python.
+Ruby Weng and Chih-Jen Lin published "[A Bayesian Approximation Method for Online Ranking](http://www.csie.ntu.edu.tw/~cjlin/papers/online_ranking/online_journal.pdf)" in 2011, in which they develop a framework to derive simple update rules implementing a number of different models. Here I look at their Bradley-Terry full pair, and Plackett-Luce model update rules. These are referred to as Weng-Lin BT-FP and Weng-Lin PL below. The implementation used was written by myself in python.
 
-Plackett-Luce is a generalization of the Bradley-Terry model in order to handle games with more than two players. Unlike the first two systems looked at here it is a globally updated ranking system. Meaning that the system looks at all game results and all the players as a complete unit instead of doing incremental updates on each result separately. A minorization–maximization (MM) algorithm for finding this is given by David Hunter in "MM Algorithms For Generalized Bradley-Terry Models". The implementation used here was written in python by Travis Erdman.
+Plackett-Luce is a generalization of the Bradley-Terry model in order to handle games with more than two players. Unlike the first two systems looked at here it is a globally updated ranking system. Meaning that the system looks at all game results and all the players as a complete unit instead of doing incremental updates on each result separately. A minorization–maximization (MM) algorithm for finding this is given by David Hunter in "[MM Algorithms For Generalized Bradley-Terry Models](http://sites.stat.psu.edu/~dhunter/papers/bt.pdf)". The implementation used here was written in python by Travis Erdman.
 
 Prediction error
 ================
@@ -34,8 +34,8 @@ Trueskill was tested both with default settings and with $\tau$ set to zero.
 | Rating System      | Training Error | Test Error |
 |--------------------|---------------:|-----------:|
 | Plackett-Luce      | 41.44% | 43.87% |
-| TrueSkill          | 41.70% | 44.72% |
-| TrueSkill $\tau$=0 | 41.33% | 44.24% |
+| Trueskill          | 41.70% | 44.72% |
+| Trueskill $\tau$=0 | 41.33% | 44.24% |
 | Weng-Lin BT-FP     | 42.19% | 44.56% |
 | Weng-Lin PL        | 43.34% | 45.81% |
 
@@ -51,8 +51,8 @@ In a few cases this leaves a player with no games for training and no rating to 
 | Rating System      | Training Error | Test Error |
 |--------------------|---------------:|-----------:|
 | Plackett-Luce      | 41.82% | 43.80%
-| TrueSkill          | 41.63% | 44.91%
-| TrueSkill $\tau$=0 | 41.30% | 44.18%
+| Trueskill          | 41.63% | 44.91%
+| Trueskill $\tau$=0 | 41.30% | 44.18%
 | Weng-Lin BT-FP     | 41.98% | 44.69%
 | Weng-Lin PL        | 43.11% | 45.76%
 
@@ -65,8 +65,8 @@ This removes 2040 games from the training set leaving 83966. The test set has 21
 | Rating System      | Training Error | Test Error |
 |--------------------|---------------:|-----------:|
 | Plackett-Luce      | 41.44% | 43.53%
-| TrueSkill          | 41.88% | 44.98%
-| TrueSkill $\tau$=0 | 41.58% | 44.50%
+| Trueskill          | 41.88% | 44.98%
+| Trueskill $\tau$=0 | 41.58% | 44.50%
 | Weng-Lin BT-FP     | 42.28% | 44.78%
 | Weng-Lin PL        | 43.39% | 45.83%
 
@@ -102,7 +102,7 @@ On the other hand the Plackett-Luce MM algorithm takes about 3 hours to converge
 Skill distribution
 ==================
 
-An aspect of player skills that may not be immediately obvious is how the difference in skill from one player to the next varies through the rankings. The skill differences at the extremes, the very top and very bottom players, are fairly large. But much of the middle ranks are very close in skill. This can be seen looking at the prediction error differences for specific groups of players. Here using trueskill with default settings trained on the full training subset above. Only predictions that involve at least one player in the group are used.
+An aspect of player skills that may not be immediately obvious is how the difference in skill from one player to the next varies through the rankings. The skill differences at the extremes, the very top and very bottom players, are fairly large. But much of the middle ranks are very close in skill. This can be seen looking at the prediction error differences for specific groups of players. Here using Trueskill with default settings trained on the full training subset above. Only predictions that involve at least one player in the group are used.
 
 | Players | Test error |
 |---------|-----------:|
