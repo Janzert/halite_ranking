@@ -7,7 +7,7 @@ import sys
 import time
 from collections import Counter
 
-from utility import load_games
+import utility
 
 HAVE_NUMPY = False
 try:
@@ -168,6 +168,10 @@ def main(args=sys.argv[1:]):
             help="Limit display of rating to top N (0 for all)")
     parser.add_argument("-n", "--num-games", type=int,
             help="Limit the number of games used (positive for first, negative for last")
+    parser.add_argument("--remove-suspect", action="store_true",
+            help="Filter out suspect games based on workerID.")
+    parser.add_argument("--no-error", action="store_true",
+            help="Filter out games that had bot errors.")
     parser.add_argument("-o", "--out-file",
             help="If specified will write the full ratings to given filename")
     parser.add_argument("-p", "--previous-ratings",
@@ -196,7 +200,16 @@ def main(args=sys.argv[1:]):
     if config.remove_bottom:
         print("Removing crash bots.")
         excluded_players += 'FredericWantiez Sametine aikinogard ozadDaro cymb01 byrd106 kxmbrian sscholle patrisk jvienna ardapekis fbastos1'.split()
-    games = load_games(config.game_files)
+    games = utility.load_games(config.game_files)
+    if config.no_error:
+        games = utility.filter_error_games(games)
+        print("Filtered out error games, leaving %d" % (len(games),))
+    if config.remove_suspect:
+        start_num = len(games)
+        games = utility.filter_suspect_games(games)
+        print("Filtered out %d suspect games, leaving %d" % (
+            start_num - len(games), len(games)))
+
     game_results = [{"%s (%s)" % (u['username'], u['userID']): int(u['rank'])
         for u in g['users'] if u['username'] not in excluded_players}
             for g in games if sum(u['username'] not in excluded_players

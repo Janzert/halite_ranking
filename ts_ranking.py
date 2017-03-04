@@ -6,7 +6,7 @@ import math
 import sys
 
 import trueskill
-from utility import load_games
+import utility
 
 def ts_ratings(game_results):
     players = {p: trueskill.Rating() for p in
@@ -20,7 +20,9 @@ def ts_ratings(game_results):
             for name, rating in group.items():
                 players[name] = rating
         if gnum % 10000 == 0:
-            print("Rated %d games" % (gnum,))
+            print("\rRated %d games" % (gnum,), end="")
+    if gnum >= 10000:
+        print("\r", end="")
     print("Rated %d games" % (gnum,))
     return players
 
@@ -32,13 +34,28 @@ def main(args=sys.argv[1:]):
             help="Limit display of rating to top N (0 for all)")
     parser.add_argument("-n", "--num-games", type=int,
             help="Limit the number of games used (positive for first, negative for last")
+    parser.add_argument("--remove-suspect", action="store_true",
+            help="Filter out suspect games based on workerID.")
+    parser.add_argument("--no-error", action="store_true",
+            help="Filter out games that had bot errors.")
     parser.add_argument("-o", "--out-file",
             help="If specified will write the full ratings to given filename")
     parser.add_argument("-t", "--tau", type=float,
             help="Set trueskill tau.")
+    parser.add_argument("--draw-prob", type=float,
+            help="Set trueskill draw probability.")
     config = parser.parse_args(args)
 
-    games = load_games(config.game_files)
+    games = utility.load_games(config.game_files)
+    if config.no_error:
+        games = utility.filter_error_games(games)
+        print("Filtered out error games, leaving %d" % (len(games),))
+    if config.remove_suspect:
+        start_num = len(games)
+        games = utility.filter_suspect_games(games)
+        print("Filtered out %d suspect games, leaving %d" % (
+            start_num - len(games), len(games)))
+
     game_results = [{"%s (%s)" % (u['username'], u['userID']): int(u['rank'])
         for u in g['users']}
             for g in games]
@@ -51,8 +68,12 @@ def main(args=sys.argv[1:]):
             print("Using last %d games." % (len(game_results),))
 
     if config.tau is not None:
-        trueskill.setup(tau = config.tau)
+        trueskill.global_env().tau = config.tau
         print("Using tau %g" % (trueskill.global_env().tau,))
+    if config.draw_prob is not None:
+        trueskill.global_env().draw_probability = config.draw_prob
+        print("Using draw probability %g" % (
+            trueskill.global_env().draw_probability,))
 
     ratings = ts_ratings(game_results)
 
