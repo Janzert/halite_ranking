@@ -16,6 +16,12 @@ try:
 except ImportError:
     pass
 
+try:
+    from choix import ilsr_rankings
+    HAVE_ILSR = True
+except ImportError:
+    pass
+
 
 """
 Implementation from erdman at https://github.com/erdman/plackett-luce/blob/master/plackett_luce.py
@@ -113,6 +119,18 @@ def pl_numpy(rankings, tolerance, init_ratings=None):
 if HAVE_NUMPY:
     plackett_luce = pl_numpy
 
+def pl_ilsr(rankings, tolerance, init_ratings=None):
+    players = list(set(key for ranking in rankings for key in ranking.keys()))
+    player_ixs = {player: ix for ix, player in enumerate(players)}
+    data = list()
+    for ranking in rankings:
+        ranks = sorted(ranking.keys(), key=lambda x: ranking[x])
+        data.append([player_ixs[player] for player in ranks])
+    ratings = ilsr_rankings(len(players), data, tol=tolerance, max_iter=100)
+    return {players[ix]: rating for ix, rating in enumerate(ratings)}
+if HAVE_ILSR:
+    plackett_luce = pl_ilsr
+
 def normalize_ratings(ratings):
     normalization_constant = sum(value for p, value in ratings)
     return [(p, v / normalization_constant) for p, v in ratings]
@@ -178,12 +196,25 @@ def main(args=sys.argv[1:]):
             help="If specified will read initial ratings from given filename")
     parser.add_argument("--no-numpy", action="store_true",
             help="Force use of native implementation, even if numpy is available")
+    parser.add_argument("--no-ilsr", action="store_true",
+            help="Force use of minorization-maximization algorithm.")
     config = parser.parse_args(args)
 
+    global plackett_luce
+    if HAVE_ILSR and config.no_ilsr:
+        plackett_luce = pl_numpy
+        print("Disabled ilsr use.")
     if config.no_numpy:
-        global plackett_luce
         plackett_luce = pl_python
         print("Disabled numpy use.")
+    if plackett_luce == pl_python:
+        print("Using plain python min-max algorithm.")
+    elif plackett_luce == pl_numpy:
+        print("Using numpy min-max algorithm.")
+    elif plackett_luce == pl_ilsr:
+        print("Using iLSR algorithm.")
+    else:
+        print("Unknown implementation.")
 
     init_ratings = None
     if config.previous_ratings:
