@@ -103,6 +103,8 @@ One important aspect for practical use that isn't reflected in the above discuss
 
 On the other hand the Plackett-Luce MM algorithm takes about 3 hours to converge the ratings using the training set. This is using a numpy implementation that is 40 times faster than a plain python implementation. While the other two systems are in plain python. Also we can simulate the situation of updating current ratings with the results of a new game. This is simply done by converging on the training set minus the last game then adding the last game. This takes 16 minutes to update the ratings with that final result. Much too slow in a competition where 20 or more games were played every minute.
 
+*EDIT*: About 2 hours after initially publishing this I discovered another paper describing another way to find Plackett-Luce ratings ["Fast and Accurate Inference of Plackett–Luce Models"](https://infoscience.epfl.ch/record/213486/files/fastinference.pdf) by Lucas Maystre and Matthias Grossglauser. Maystre has also provided a nice python library [choix](https://github.com/lucasmaystre/choix) implementing the new method as well as some others. This method converges the ratings for the training set in about 13 seconds. And can add the final game in 6.8 seconds. This makes the Plackett-Luce ratings practical in many more situations.
+
 Skill distribution
 ==================
 
