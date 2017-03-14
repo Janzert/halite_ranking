@@ -123,10 +123,15 @@ def pl_ilsr(rankings, tolerance, init_ratings=None):
     players = list(set(key for ranking in rankings for key in ranking.keys()))
     player_ixs = {player: ix for ix, player in enumerate(players)}
     data = list()
+    if init_ratings:
+        ratings = [init_ratings.get(p, 1 / len(players)) for p in players]
+    else:
+        ratings = None
     for ranking in rankings:
         ranks = sorted(ranking.keys(), key=lambda x: ranking[x])
         data.append([player_ixs[player] for player in ranks])
-    ratings = ilsr_rankings(len(players), data, tol=tolerance, max_iter=100)
+    ratings = ilsr_rankings(len(players), data, initial_params=ratings,
+            tol=tolerance)
     return {players[ix]: rating for ix, rating in enumerate(ratings)}
 if HAVE_ILSR:
     plackett_luce = pl_ilsr
