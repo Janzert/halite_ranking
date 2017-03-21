@@ -3,7 +3,7 @@
 
 This is a quick look at the performance of a few different rating systems using data from the Halite programming competition. There is no particular reason for the systems chosen other than being ones that handle multiplayer games and for which I could get or write an implementation. This did happen to nicely give two systems to compare against Trueskill (the system used during the contest). One is another incremental, locally updated, system like Trueskill and the other is a global update system.
 
-Review of Halite data
+Review of Halite data {#data-review}
 =====================
 [Halite](https://halite.io/) is a programming competition where games are played in a free-for-all format between 2 to 6 players. The data looked at here is from the finals of the first competition. During the finals all submissions were closed and games were played continuously between the bots. The finals finished with 95562 games involving 1592 players.
 
@@ -11,7 +11,7 @@ At the start of the finals all ratings were reset. So the first games had mostly
 
 At various stages throughout the finals the lower ranked players were removed from seeding games. Until about 400 players were left actively playing. Because of this the number of games a player participated in varies between 73 and 563 games.
 
-Rating systems
+Rating systems {#rating-systems}
 ==============
 
 I look at 3 different systems and 5 varients of those systems total. These are Trueskill, a bayesian approximation system by Ruby Weng and Chih-Jen Lin, and the Plackett-Luce model with a minorization-maximization algorithm.
@@ -22,7 +22,7 @@ Ruby Weng and Chih-Jen Lin published "[A Bayesian Approximation Method for Onlin
 
 Plackett-Luce is a generalization of the [Bradley-Terry model](https://en.wikipedia.org/wiki/Bradley%E2%80%93Terry_model) in order to handle games with more than two players. Unlike the first two systems looked at here it is a globally updated ranking system. Meaning that the system looks at all game results and all the players as a complete unit instead of doing incremental rating updates on each result separately. A minorization–maximization (MM) algorithm for finding this is given by David Hunter in "[MM Algorithms For Generalized Bradley-Terry Models](http://sites.stat.psu.edu/~dhunter/papers/bt.pdf)". The implementation used here was written in python by Travis Erdman.
 
-Prediction error
+Prediction error {#prediction-error}
 ================
 
 The most common way to compare different rating systems is to look at how well they predict game outcomes. I will be following the specific details first used by Heibrich, et.al. and fully described by Weng and Lin. The metric used is prediction error rate, or how often the ratings mispredict one player beating another.
@@ -35,15 +35,18 @@ ratings so that players with changing skill levels don't get 'stuck' at
 a particular rating level. With player bots not changing over the course of the
 finals they maintain a fixed skill throughout.
 
-| Rating System      | Training Error | Test Error |
-|--------------------|---------------:|-----------:|
-| Plackett-Luce      | 41.44% | 43.87% |
-| Trueskill          | 41.70% | 44.72% |
-| Trueskill $\tau$=0 | 41.33% | 44.24% |
-| Weng-Lin BT-FP     | 42.19% | 44.56% |
-| Weng-Lin PL        | 43.34% | 45.81% |
+| Rating System      | Training Error | Test Error | CV Error |
+|--------------------|---------------:|-----------:|---------:|
+| Plackett-Luce      | 41.44% | 43.87% | 43.64%
+| Trueskill          | 41.70% | 44.72% | 44.45%
+| Trueskill $\tau$=0 | 41.33% | 44.24% | 43.78%
+| Weng-Lin BT-FP     | 42.19% | 44.56% | 44.20%
+| Weng-Lin PL        | 43.34% | 45.81% | 45.49%
 
-Subset training
+After initial publication there was some concern that 10% was not a large enough sample for the test size. I also found a much faster Plackett-Luce algorithm (see [Processing time](#processing-time) section below) allowing a full
+cross validation to be completed. The results of 10-fold cross validation have been added as the CV Error column above. Although all the systems performed somewhat better, the order of results is the same. But Trueskill $\tau$=0 has drawn quite a bit closer to the Plackett-Luce performance.
+
+Subset training {#subset-training}
 ===============
 
 One method to improve the accuracy of ratings is to remove noise from the results. Results that for whatever reason do not reflect the true strength of the participants. In Halite a primary suspect for such noise in the results are from bots having an error or timeout in a game.
@@ -76,7 +79,7 @@ This removes 2040 games from the training set leaving 83966. The test set has 21
 
 Interestingly this is worse for both incrementally updated systems but better for the global Plackett-Luce system.
 
-Effect of game order
+Effect of game order {#game-order}
 ====================
 
 Because of the global update the results of the Plackett-Luce MM algorithm are game order independent. But the other 2 systems having incremental local updates can give different ratings from the same game results in a different order. In fact the chronologic order used so far is probably close to ideal for these systems. Since the early games will have the widest spread of skills and end with games very close. For the same reason reversing the order will probably be close to the worst case. Besides the reverse order I also tested randomly shuffling the games. This was done 100 times with the mean and standard deviation of the error reported below.
@@ -96,16 +99,16 @@ Because of the global update the results of the Plackett-Luce MM algorithm are g
 |                    | Random      | 47.09% (0.24%)
 |                    | Reverse     | 47.26%
 
-Processing time
+Processing time {#processing-time}
 ===============
 
 One important aspect for practical use that isn't reflected in the above discussion is the time needed to create the ratings. This varies significantly between the systems. Trueskill takes about 1 minute to process all of the training games. The Weng-Lin implementation is quite a bit faster taking only 2.5 seconds for the Brandley-Terry updates and 3 seconds with Plackett-Luce. Also both systems being incrementally updated are very fast to add another game into the results. For most applications either system is fast enough.
 
 On the other hand the Plackett-Luce MM algorithm takes about 3 hours to converge the ratings using the training set. This is using a numpy implementation that is 40 times faster than a plain python implementation. While the other two systems are in plain python. Also we can simulate the situation of updating current ratings with the results of a new game. This is simply done by converging on the training set minus the last game then adding the last game. This takes 16 minutes to update the ratings with that final result. Much too slow in a competition where 20 or more games were played every minute.
 
-*EDIT*: About 2 hours after initially publishing this I discovered another paper describing another way to find Plackett-Luce ratings ["Fast and Accurate Inference of Plackett–Luce Models"](https://infoscience.epfl.ch/record/213486/files/fastinference.pdf) by Lucas Maystre and Matthias Grossglauser. Maystre has also provided a nice python library [choix](https://github.com/lucasmaystre/choix) implementing the new method as well as some others. This method converges the ratings for the training set in about 13 seconds. And can add the final game in 6.8 seconds. This makes the Plackett-Luce ratings practical in many more situations.
+*EDIT*: About 2 hours after initially publishing this I discovered another paper describing a new way to find Plackett-Luce ratings ["Fast and Accurate Inference of Plackett–Luce Models"](https://infoscience.epfl.ch/record/213486/files/fastinference.pdf) by Lucas Maystre and Matthias Grossglauser. Maystre has also provided a nice python library [choix](https://github.com/lucasmaystre/choix) implementing the new method as well as some others. This method converges the ratings for the training set in about 13 seconds. And can add the final game in 6.8 seconds. This makes the Plackett-Luce ratings practical in many more situations.
 
-Skill distribution
+Skill distribution {#skill-distribution}
 ==================
 
 An aspect of player skills that may not be immediately obvious is how the difference in skill from one player to the next varies through the rankings. The skill differences at the extremes, the very top and very bottom players, are fairly large. But much of the middle ranks are very close in skill. This can be seen looking at the prediction error differences for specific groups of players. Here using Trueskill with default settings trained on the full training subset above. Only predictions that involve at least one player in the group are used.
@@ -121,7 +124,7 @@ An aspect of player skills that may not be immediately obvious is how the differ
 
 The middle 1392 excludes the top and bottom 100 players.
 
-Closing thoughts
+Closing thoughts {#closing}
 ================
 
 Trueskill is probably the most widely known and implemented rating system for games involving more than 2 players. It is also very competitive in rating and processing performance, especially if the configuration parameters are adjusted to fit the game. The Weng-Lin framework is significantly easier to implement and somewhat faster to calculate ratings with, while still maintaining comparable accuracy in the results. Finally the Plackett-Luce system gives the most accurate ratings here, but can be quite computationally expensive to calculate.
